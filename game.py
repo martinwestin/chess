@@ -1,5 +1,13 @@
+import pygame
+
+
+class InCheckError(Exception):
+    pass
+
 
 class Game:
+    CHECKMATE_EVENT = pygame.USEREVENT + 1
+
     def __init__(self):
         self.turn = "w"
         self.moves = []

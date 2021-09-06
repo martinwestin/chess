@@ -40,15 +40,19 @@ class Board(pygame.Rect):
         self.start_x, self.start_y = 100, 100
         super(Board, self).__init__(s_width - (s_width - 100), s_height - (s_height - 100), 500, 500)
         self.squares = []
-        for row in reversed(range(8)):
-            for col in range(8):
-                color = Square.LIGHT_COLOR if (row + col) % 2 == 0 else Square.DARK_COLOR
-                self.squares.append(Square(col, row, color, None, self.start_x, self.start_y))
+        self.reset_squares()
 
         self.selected_square = None
         self.SELECT_COLOR = (255, 80, 80)
         self.game = game.Game()
         self.starting_pos()
+
+    def reset_squares(self):
+        self.squares.clear()
+        for row in reversed(range(8)):
+            for col in range(8):
+                color = Square.LIGHT_COLOR if (row + col) % 2 == 0 else Square.DARK_COLOR
+                self.squares.append(Square(col, row, color, None, self.start_x, self.start_y))
 
     def select_square(self, square: Square):
         if self.selected_square is not None:
@@ -56,7 +60,10 @@ class Board(pygame.Rect):
                 if self.selected_square.piece.color == self.game.current_turn:
                     if square != self.selected_square:
                         if self.selected_square.piece.move_was_legal(square, self.squares):
-                            self.move_piece(square)
+                            try:
+                                self.move_piece(square)
+                            except game.InCheckError:
+                                pass
 
             self.selected_square.color = Square.LIGHT_COLOR if \
                 (self.selected_square.row + self.selected_square.col) % 2 != 0 else Square.DARK_COLOR
@@ -80,7 +87,7 @@ class Board(pygame.Rect):
                 to_square.un_place()
                 self.squares[self.squares.index(self.selected_square)].place_piece(piece)
                 piece.move(last_move[1].index)
-                return
+                raise game.InCheckError("Move is illegal as it places the king in check.")
 
         if type(piece) == chess_piece.Pawn:
             if not piece.has_moved:
@@ -89,6 +96,9 @@ class Board(pygame.Rect):
             col, row = piece.get_col_row(self.squares)
             if row == 7 or row == 0:
                 self.squares[piece.index].place_piece(chess_piece.Queen(piece.index, piece.color))
+
+        if self.is_checkmate():
+            pygame.event.post(pygame.event.Event(self.game.CHECKMATE_EVENT))
         self.game.next_turn()
 
     def starting_pos(self):
@@ -121,9 +131,28 @@ class Board(pygame.Rect):
     def piece_in_check(self):
         king_squares = list(filter(lambda x: type(x.piece) == chess_piece.King, self.squares))
 
-        for square in list(filter(lambda x: x.has_piece, self.squares)):
+        for square in list(filter(lambda x: x not in king_squares,
+                                  list(filter(lambda x: x.has_piece, self.squares)))):
             piece = square.piece
             for k_s in king_squares:
-                legal = piece.move_was_legal(k_s, self.squares)
+                if type(piece) != chess_piece.Pawn:
+                    legal = piece.move_was_legal(k_s, self.squares)
+                else:
+                    legal = piece.legal_take(k_s, self.squares)
                 if legal:
                     return k_s.piece
+
+    def is_checkmate(self):
+        piece_in_check = self.piece_in_check()
+        if piece_in_check is not None:
+            for piece in list(map(lambda x: x.piece, list(filter(lambda x: x.color == piece_in_check.color,
+                                                                 list(filter(lambda x: x.has_piece, self.squares)))))):
+                for square in self.squares:
+                    if piece.move_was_legal(square, self.squares):
+                        try:
+                            self.move_piece(square)
+                            return False
+                        except game.InCheckError:
+                            pass
+            return True
+        return False

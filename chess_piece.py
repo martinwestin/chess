@@ -163,7 +163,8 @@ class Pawn(Piece):
                     if not self.has_moved:
 
                         if abs(to_row - current_row) == 2 and to_col == current_col:
-                            return not to_square.has_piece
+                            if not self.piece_in_way(to_square, squares):
+                                return not to_square.has_piece
                         else:
                             if current_col == to_col:
                                 return not to_square.has_piece
@@ -177,6 +178,14 @@ class Pawn(Piece):
                             else:
                                 if abs(current_col - to_col) == 1:
                                     return to_square.has_piece
+
+    def legal_take(self, to_square, squares: list):
+        current_col, current_row = self.get_col_row(squares)
+        if not self.moved_onto_teammate(to_square, squares):
+            if self.color == "w":
+                return current_row + 1 == to_square.row and abs(current_col - to_square.col) == 1
+            else:
+                return current_row - 1 == to_square.row and abs(current_col - to_square.col) == 1
 
     def moved(self):
         self.has_moved = True

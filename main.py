@@ -1,6 +1,7 @@
 import pygame
 import board
 import os
+import game
 
 
 pygame.font.init()
@@ -34,13 +35,19 @@ class ChessApp:
         self.board = board.Board(self.WIDTH, self.HEIGHT)
         self.font = pygame.font.SysFont("Arial", 20)
 
+        self.lost = False
+
     def draw_window(self):
         self.WIN.fill((255, 255, 255))
         pygame.draw.rect(self.WIN, (0, 0, 0), self.board, 5)
+        turn = "WHITE" if self.board.game.current_turn == "w" else "BLACK"
+        if not self.lost:
+            self.WIN.blit(self.font.render(f"{turn}'S TURN", True, (0, 0, 0)), (100, 50))
+        else:
+            self.WIN.blit(self.font.render(f"{turn} WAS CHECKMATED", True, (0, 0, 0)), (100, 50))
+
         for square in self.board.squares:
             pygame.draw.rect(self.WIN, square.color, square)
-            turn = "WHITE" if self.board.game.current_turn == "w" else "BLACK"
-            self.WIN.blit(self.font.render(f"{turn}'S TURN", True, (0, 0, 0)), (100, 50))
 
             if square.has_piece:
                 self.WIN.blit(sprite_map[str(square.piece)], (square.x + 5, square.y + 5))
@@ -59,13 +66,15 @@ class ChessApp:
                 if event.type == pygame.QUIT:
                     self.run = False
 
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.type == pygame.MOUSEBUTTONDOWN and not self.lost:
                     px, py = pygame.mouse.get_pos()
                     for square in self.board.squares:
                         end_x = square.x + square.width
                         end_y = square.y + square.height
                         if square.x <= px < end_x and square.y <= py < end_y:
                             self.board.select_square(square)
+                if event.type == game.Game.CHECKMATE_EVENT:
+                    self.lost = True
 
             self.draw_window()
 
