@@ -86,8 +86,9 @@ class King(Piece):
 class Queen(Piece):
     def __init__(self, start_index: int, color: str):
         super(Queen, self).__init__(color, start_index)
+        self.value = 900
 
-    def __str__(self):
+    def __repr__(self):
         return "w_q" if self.color == "w" else "b_q"
 
     def move_was_legal(self, to_square, squares: list):
@@ -104,6 +105,7 @@ class Queen(Piece):
 class Rook(Piece):
     def __init__(self, start_index: int, color: str):
         super(Rook, self).__init__(color, start_index)
+        self.value = 500
 
     def __repr__(self):
         return "w_r" if self.color == "w" else "b_r"
@@ -121,6 +123,7 @@ class Knight(Piece):
     def __init__(self, start_index: int, color: str):
         super(Knight, self).__init__(color, start_index)
         self.VALID_OFFSETS = [10, 6, 17, 15]
+        self.value = 300
 
     def __repr__(self):
         return "w_n" if self.color == "w" else "b_n"
@@ -133,6 +136,7 @@ class Knight(Piece):
 class Bishop(Piece):
     def __init__(self, start_index: int, color: str):
         super(Bishop, self).__init__(color, start_index)
+        self.value = 300
 
     def __repr__(self):
         return "w_b" if self.color == "w" else "b_b"
@@ -149,6 +153,7 @@ class Pawn(Piece):
     def __init__(self, start_index: int, color: str):
         super(Pawn, self).__init__(color, start_index)
         self.has_moved = False
+        self.value = 100
 
     def __repr__(self):
         return "w_p" if self.color == "w" else "b_p"

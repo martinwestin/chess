@@ -61,7 +61,7 @@ class Board(pygame.Rect):
                     if square != self.selected_square:
                         if self.selected_square.piece.move_was_legal(square, self.squares):
                             try:
-                                self.move_piece(square)
+                                self.move_piece(self.selected_square.piece, square)
                             except game.InCheckError:
                                 pass
 
@@ -71,13 +71,12 @@ class Board(pygame.Rect):
         self.selected_square = square
         self.selected_square.color = self.SELECT_COLOR
 
-    def move_piece(self, to_square: Square):
-        to_square.place_piece(self.selected_square.piece)
-        self.squares[self.squares.index(self.selected_square)].un_place()
-        piece = self.squares[self.squares.index(to_square)].piece
+    def move_piece(self, piece: chess_piece.Piece, to_square: Square):
+        from_square = list(filter(lambda x: x.piece == piece, self.squares))[0]
+        to_square.place_piece(piece)
+        from_square.un_place()
         piece.move(to_square.index)
-
-        self.game.add_move(piece, self.squares[self.squares.index(self.selected_square)], to_square)
+        self.game.add_move(piece, self.squares[self.squares.index(from_square)], to_square)
         piece_in_check = self.piece_in_check()
         if piece_in_check is not None:
             if self.game.current_turn == piece_in_check.color:
@@ -85,7 +84,7 @@ class Board(pygame.Rect):
                 last_move = self.game.last_move
                 self.game.undo_latest_move()
                 to_square.un_place()
-                self.squares[self.squares.index(self.selected_square)].place_piece(piece)
+                self.squares[self.squares.index(from_square)].place_piece(piece)
                 piece.move(last_move[1].index)
                 raise game.InCheckError("Move is illegal as it places the king in check.")
 
@@ -97,9 +96,10 @@ class Board(pygame.Rect):
             if row == 7 or row == 0:
                 self.squares[piece.index].place_piece(chess_piece.Queen(piece.index, piece.color))
 
-        if self.is_checkmate():
-            pygame.event.post(pygame.event.Event(self.game.CHECKMATE_EVENT))
         self.game.next_turn()
+        possible_moves = len(self.possible_moves(self.game.current_turn))
+        if possible_moves == 0:
+            pygame.event.post(pygame.event.Event(self.game.CHECKMATE_EVENT))
 
     def starting_pos(self):
         # white pieces
@@ -142,17 +142,24 @@ class Board(pygame.Rect):
                 if legal:
                     return k_s.piece
 
-    def is_checkmate(self):
-        piece_in_check = self.piece_in_check()
-        if piece_in_check is not None:
-            for piece in list(map(lambda x: x.piece, list(filter(lambda x: x.color == piece_in_check.color,
-                                                                 list(filter(lambda x: x.has_piece, self.squares)))))):
-                for square in self.squares:
-                    if piece.move_was_legal(square, self.squares):
-                        try:
-                            self.move_piece(square)
-                            return False
-                        except game.InCheckError:
-                            pass
-            return True
-        return False
+    def possible_moves(self, color: str):
+        piece_squares = list(filter(lambda x: x.has_piece, self.squares))
+        piece_squares = list(filter(lambda x: x.piece.color == color, piece_squares))
+        pieces = list(map(lambda x: x.piece, piece_squares))
+        possible_outcomes = []
+
+        for piece in pieces:
+            for square in self.squares:
+                square_piece = square.piece
+                if piece.move_was_legal(square, self.squares):
+                    square.place_piece(piece)
+                    piece_in_check = self.piece_in_check()
+                    if piece_in_check is None:
+                        # (current_state, (piece to move, square to move to))
+                        possible_outcomes.append((self.squares, (piece, square)))
+
+                    square.un_place()
+                    if square_piece is not None:
+                        square.place_piece(square_piece)
+
+        return possible_outcomes

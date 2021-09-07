@@ -1,4 +1,5 @@
 import pygame
+import chess_piece
 
 
 class InCheckError(Exception):
@@ -28,3 +29,11 @@ class Game:
     @property
     def last_move(self):
         return self.moves[-1]
+
+    @staticmethod
+    def evaluation(squares: list, color: str = "b"):
+        piece_squares = list(filter(lambda x: x.has_piece, squares))
+        pieces = list(map(lambda x: x.piece, list(filter(lambda x: x.piece.color == color, piece_squares))))
+        evaluation = sum([piece.value for piece in pieces if type(piece) != chess_piece.King])
+
+        return evaluation
