@@ -76,8 +76,7 @@ class ChessApp:
                 if event.type == game.Game.CHECKMATE_EVENT:
                     self.lost = True
 
-                elif event.type == game.Game.AI_TURN_EVENT:
-                    pass
+                elif event.type == game.Game.AI_TURN_EVENT and not self.lost:
                     possible_moves = self.board.possible_moves(game.Game.AI_COLOR, self.board.squares)
                     evals = [self.board.game.evaluation(move[0]) for move in possible_moves]
                     piece, square = possible_moves[evals.index(max(evals))][1]

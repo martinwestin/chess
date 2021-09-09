@@ -97,10 +97,10 @@ class Board(pygame.Rect):
             if row == 7 or row == 0:
                 self.squares[piece.index].place_piece(chess_piece.Queen(piece.index, piece.color))
 
-        self.game.next_turn()
-        possible_moves = self.possible_moves(self.game.current_turn, self.squares)
+        possible_moves = self.possible_moves("b" if self.game.current_turn == "w" else "w", self.squares)
         if len(possible_moves) == 0:
             pygame.event.post(pygame.event.Event(self.game.CHECKMATE_EVENT))
+        self.game.next_turn()
 
     def starting_pos(self):
         # white pieces

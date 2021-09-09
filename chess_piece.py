@@ -176,7 +176,7 @@ class Pawn(Piece):
                             if current_col == to_col:
                                 return not to_square.has_piece
                             else:
-                                if abs(current_col - to_col) == 1:
+                                if abs(current_col - to_col) == 1 and abs(to_row - current_row) != 2:
                                     return to_square.has_piece
                     else:
                         if abs(to_row - current_row) == 1:
