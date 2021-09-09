@@ -51,7 +51,7 @@ class ChessApp:
 
             if square.has_piece:
                 self.WIN.blit(sprite_map[str(square.piece)], (square.x + 5, square.y + 5))
-        piece_in_check = self.board.piece_in_check()
+        piece_in_check = self.board.piece_in_check(self.board.squares)
         if piece_in_check is not None:
             check_square = list(filter(lambda x: x.piece == piece_in_check, self.board.squares))[0]
             pygame.draw.rect(self.WIN, (255, 0, 0), check_square, 5)
@@ -76,9 +76,16 @@ class ChessApp:
                 if event.type == game.Game.CHECKMATE_EVENT:
                     self.lost = True
 
+                elif event.type == game.Game.AI_TURN_EVENT:
+                    pass
+                    possible_moves = self.board.possible_moves(game.Game.AI_COLOR, self.board.squares)
+                    evals = [self.board.game.evaluation(move[0]) for move in possible_moves]
+                    piece, square = possible_moves[evals.index(max(evals))][1]
+                    self.board.move_piece(piece, square, check_scan=False)
+
             self.draw_window()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = ChessApp()
     app.run_app()
