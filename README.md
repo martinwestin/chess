@@ -1,3 +1,6 @@
 # chess
 A simple chess game in pygame
-Work in progress. I have currently made the game and added (almost) all the rules, will make an AI using minimax as well.
+####
+You can play two players against each other, and the program will tell
+if any player checkmated the other. I have not implemented castling,
+stalemate or en passant.

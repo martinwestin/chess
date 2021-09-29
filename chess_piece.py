@@ -2,13 +2,11 @@ import game
 
 
 class Piece:
-    DIAGONAL_OFFSETS = [9, 7, -9, -7]
-    VERTICAL_OFFSETS = [8, -8]
-    HORIZONTAL_OFFSETS = [1, -1]
 
     def __init__(self, color: str, square_index: int):
         self.index = square_index
         self.color = color
+        self.has_moved = False
 
     def moved_onto_teammate(self, to_square, squares: list):
         if squares[squares.index(to_square)].has_piece:
@@ -71,6 +69,9 @@ class Piece:
 
     def move_was_legal(self, to_square, squares: list) -> bool: ...
 
+    def moved(self):
+        self.has_moved = True
+
 
 class King(Piece):
     def __init__(self, start_index: int, color: str):
@@ -79,16 +80,16 @@ class King(Piece):
     def __repr__(self):
         return "w_k" if self.color == "w" else "b_k"
 
-    def move_was_legal(self, to_square, squares: list):
+    def move_was_legal(self, to_square, squares: list, check_moved_onto_teammate: bool = True):
         if not self.moved_onto_teammate(to_square, squares):
-            return self.index - to_square.index in self.HORIZONTAL_OFFSETS + self.VERTICAL_OFFSETS +\
-                   self.DIAGONAL_OFFSETS
+            col, row = self.get_col_row(squares)
+            return abs(to_square.col - col) <= 1 and abs(to_square.row - row) <= 1
 
 
 class Queen(Piece):
     def __init__(self, start_index: int, color: str):
         super(Queen, self).__init__(color, start_index)
-        self.value = 900 if self.color == game.Game.AI_COLOR else -900
+        self.value = 900
 
     def __repr__(self):
         return "w_q" if self.color == "w" else "b_q"
@@ -107,7 +108,7 @@ class Queen(Piece):
 class Rook(Piece):
     def __init__(self, start_index: int, color: str):
         super(Rook, self).__init__(color, start_index)
-        self.value = 500 if self.color == game.Game.AI_COLOR else -500
+        self.value = 500
 
     def __repr__(self):
         return "w_r" if self.color == "w" else "b_r"
@@ -125,7 +126,7 @@ class Knight(Piece):
     def __init__(self, start_index: int, color: str):
         super(Knight, self).__init__(color, start_index)
         self.VALID_OFFSETS = [10, 6, 17, 15]
-        self.value = 300 if self.color == game.Game.AI_COLOR else -300
+        self.value = 300
 
     def __repr__(self):
         return "w_n" if self.color == "w" else "b_n"
@@ -138,7 +139,7 @@ class Knight(Piece):
 class Bishop(Piece):
     def __init__(self, start_index: int, color: str):
         super(Bishop, self).__init__(color, start_index)
-        self.value = 300 if self.color == game.Game.AI_COLOR else -300
+        self.value = 300
 
     def __repr__(self):
         return "w_b" if self.color == "w" else "b_b"
@@ -154,8 +155,7 @@ class Bishop(Piece):
 class Pawn(Piece):
     def __init__(self, start_index: int, color: str):
         super(Pawn, self).__init__(color, start_index)
-        self.has_moved = False
-        self.value = 100 if self.color == game.Game.AI_COLOR else -100
+        self.value = 100
 
     def __repr__(self):
         return "w_p" if self.color == "w" else "b_p"
@@ -193,6 +193,3 @@ class Pawn(Piece):
                 return current_row + 1 == to_square.row and abs(current_col - to_square.col) == 1
             else:
                 return current_row - 1 == to_square.row and abs(current_col - to_square.col) == 1
-
-    def moved(self):
-        self.has_moved = True

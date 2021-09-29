@@ -37,6 +37,8 @@ class Square(pygame.Rect):
 
 
 class Board(pygame.Rect):
+    MOVEMENT_TRACK_PIECES = [chess_piece.Pawn, chess_piece.King, chess_piece.Rook]
+
     def __init__(self, s_width: int, s_height: int):
         super(Board, self).__init__(s_width - (s_width - 100), s_height - (s_height - 100), 500, 500)
         self.squares = []
@@ -71,36 +73,49 @@ class Board(pygame.Rect):
         self.selected_square = square
         self.selected_square.color = self.SELECT_COLOR
 
+    def check_scan(self, piece: chess_piece.Piece, from_square: Square, to_square: Square):
+        """
+        Check if last move was illegal. If it was, undo it and raise InCheckError.
+        :param piece: the piece that is moving.
+        :param from_square: from what square the piece is moving.
+        :param to_square: to what square the piece is moving.
+        :return:
+        """
+        piece_in_check = self.piece_in_check(self.squares)
+        if piece_in_check is not None:
+            if self.game.current_turn == piece_in_check.color:
+                # last move must have been illegal since the king is still in check, undo last move
+                last_move = self.game.last_move
+                self.game.undo_latest_move()
+                to_square.un_place()
+                self.squares[self.squares.index(from_square)].place_piece(piece)
+                piece.move(last_move[1].index)
+                raise game.InCheckError("Move is illegal as it places the king in check.")
+
     def move_piece(self, piece: chess_piece.Piece, to_square: Square, check_scan: bool = True):
         from_square = list(filter(lambda x: x.piece == piece, self.squares))[0]
+        col, row = piece.get_col_row(self.squares)
+
         to_square.place_piece(piece)
         from_square.un_place()
         piece.move(to_square.index)
         self.game.add_move(piece, self.squares[self.squares.index(from_square)], to_square)
         if check_scan:
-            piece_in_check = self.piece_in_check(self.squares)
-            if piece_in_check is not None:
-                if self.game.current_turn == piece_in_check.color:
-                    # last move must have been illegal since the king is still in check, undo last move
-                    last_move = self.game.last_move
-                    self.game.undo_latest_move()
-                    to_square.un_place()
-                    self.squares[self.squares.index(from_square)].place_piece(piece)
-                    piece.move(last_move[1].index)
-                    raise game.InCheckError("Move is illegal as it places the king in check.")
+            self.check_scan(piece, from_square, to_square)
 
-        if type(piece) == chess_piece.Pawn:
-            if not piece.has_moved:
-                piece.moved()
+        if type(piece) in self.MOVEMENT_TRACK_PIECES:
+            piece.moved()
 
-            col, row = piece.get_col_row(self.squares)
-            if row == 7 or row == 0:
-                self.squares[piece.index].place_piece(chess_piece.Queen(piece.index, piece.color))
+            if type(piece) == chess_piece.Pawn:
+                if not piece.has_moved:
+                    piece.moved()
+                if row == 7 or row == 0:
+                    self.squares[piece.index].place_piece(chess_piece.Queen(piece.index, piece.color))
 
-        possible_moves = self.possible_moves("b" if self.game.current_turn == "w" else "w", self.squares)
+        self.game.next_turn()
+        possible_moves = self.possible_moves(self.game.current_turn, self.squares)
         if len(possible_moves) == 0:
             pygame.event.post(pygame.event.Event(self.game.CHECKMATE_EVENT))
-        self.game.next_turn()
 
     def starting_pos(self):
         # white pieces
@@ -129,12 +144,10 @@ class Board(pygame.Rect):
         for i in range(48, 56):
             self.squares[i].place_piece(chess_piece.Pawn(i, "b"))
 
-    @staticmethod
-    def piece_in_check(squares: List[Square]):
+    def piece_in_check(self, squares: List[Square]):
         king_squares = list(filter(lambda x: type(x.piece) == chess_piece.King, squares))
 
-        for square in list(filter(lambda x: x not in king_squares,
-                                  list(filter(lambda x: x.has_piece, squares)))):
+        for square in list(filter(lambda x: x not in king_squares, self.piece_squares(squares))):
             piece = square.piece
             for k_s in king_squares:
                 if type(piece) != chess_piece.Pawn:
@@ -145,19 +158,25 @@ class Board(pygame.Rect):
                     return k_s.piece
 
     def possible_moves(self, color: str, squares: List[Square]):
-        piece_squares = list(filter(lambda x: x.has_piece, squares))
+        piece_squares = self.piece_squares(squares)
         piece_squares = list(filter(lambda x: x.piece.color == color, piece_squares))
         pieces = list(map(lambda x: x.piece, piece_squares))
+        ignore_squares = list(filter(lambda x: x.piece.color == color, self.piece_squares(squares)))
+        to_check = list(filter(lambda x: x not in ignore_squares, squares))
+
         possible_outcomes = []
         for piece in pieces:
-            for square in squares:
+            for square in to_check:
                 square_piece = square.piece
+
                 if piece.move_was_legal(square, squares):
-                    list(filter(lambda x: x.index == piece.index, squares))[0].un_place()
+                    # o_s ==> original square the piece moved from
+                    o_s = list(filter(lambda x: x.index == piece.index, squares))[0]
+                    o_s.un_place()
                     square.place_piece(piece)
                     piece_in_check = self.piece_in_check(squares)
                     if piece_in_check is not None:
-                        piece_in_check = None if piece_in_check.color != color else piece_in_check
+                        piece_in_check = None if piece_in_check.color != piece.color else piece_in_check
 
                     if piece_in_check is None:
                         # (current_state, (piece to move, square to move to))
@@ -168,9 +187,28 @@ class Board(pygame.Rect):
                     if square_piece is not None:
                         square.place_piece(square_piece)
 
-                    list(filter(lambda x: x.index == piece.index, squares))[0].place_piece(piece)
+                    o_s.place_piece(piece)
 
         return possible_outcomes
 
     def fetch_square_by_index(self, index: int):
         return list(filter(lambda square: square.index == index, self.squares))[0]
+
+    def leading(self):
+        w_sum, b_sum = 0, 0
+        for square in self.piece_squares(self.squares):
+            if type(square.piece) != chess_piece.King:
+                value = square.piece.value
+                if square.piece.color == "w":
+                    w_sum += value
+                else:
+                    b_sum += value
+
+        if w_sum != b_sum:
+            if w_sum > b_sum:
+                return "w", int(w_sum / 100 - b_sum / 100)
+            return "b", int(b_sum / 100 - w_sum / 100)
+
+    @staticmethod
+    def piece_squares(squares: List[Square]):
+        return list(filter(lambda x: x.has_piece, squares))

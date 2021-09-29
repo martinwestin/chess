@@ -1,3 +1,4 @@
+import time
 import pygame
 import board
 import os
@@ -41,6 +42,11 @@ class ChessApp:
         self.WIN.fill((255, 255, 255))
         pygame.draw.rect(self.WIN, (0, 0, 0), self.board, 5)
         turn = "WHITE" if self.board.game.current_turn == "w" else "BLACK"
+        leading = self.board.leading()
+        if leading is not None:
+            l_c = "BLACK" if leading[0] == "b" else "WHITE"
+            self.WIN.blit(self.font.render(f"LEADING: {l_c} | + {leading[1]}", True, (0, 0, 0)), (100, 25))
+
         if not self.lost:
             self.WIN.blit(self.font.render(f"{turn}'S TURN", True, (0, 0, 0)), (100, 50))
         else:
@@ -75,12 +81,6 @@ class ChessApp:
                             self.board.select_square(square)
                 if event.type == game.Game.CHECKMATE_EVENT:
                     self.lost = True
-
-                elif event.type == game.Game.AI_TURN_EVENT and not self.lost:
-                    possible_moves = self.board.possible_moves(game.Game.AI_COLOR, self.board.squares)
-                    evals = [self.board.game.evaluation(move[0]) for move in possible_moves]
-                    piece, square = possible_moves[evals.index(max(evals))][1]
-                    self.board.move_piece(piece, square, check_scan=False)
 
             self.draw_window()
 
